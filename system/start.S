@@ -43,10 +43,29 @@
  * Small relocating version for "micro" boot
  */
 
-#define	MULTIBOOT_HEADER_MAGIC  0x1BADB002
-#define	MULTIBOOT_HEADER_FLAGS  0x00010003
+/*
+ * Multiboot2 Constants
+ */
+#define	MULTIBOOT_HEADER_MAGIC  0xE85250D6
+#define MULTIBOOT_ARCH 		0
+#define MULTIBOOT_HEADER_LENGTH	mbootheader - mbootheader_end
+#define MODULE_ALIGNMENT_TAG_TYPE	6
+#define MODULE_ALIGNMENT_TAG_FLAGS	1
+#define MODULE_ALIGNMENT_TAG_SIZE	8
+#define ADDRESS_TAG_TYPE	2
+#define ADDRESS_TAG_FLAGS	1
+#define ADDRESS_TAG_SIZE	24
+#define ENTRY_ADDRESS_TAG_TYPE	3
+#define ENTRY_ADDRESS_TAG_FLAGS 1
+#define ENTRY_ADDRESS_TAG_SIZE 	12
+#define INFO_REQ_TAG_TYPE	1
+#define INFO_REQ_TAG_FLAGS	0
+#define INFO_REQ_MEM	4
+#define INFO_REQ_MMAP	6
+
 #define MULTIBOOT_SIGNATURE	0x2BADB002	/* Multiboot signature verification	*/
 #define MULTIBOOT_BOOTINFO_MMAP	0x00000040	/* mmap_length mmap_addr valid		*/
+
 #define	GDT_ENTRIES		4
 #define	GDT_ENTRY_SIZE		8
 #define	GDT_BYTES		(GDT_ENTRIES * GDT_ENTRY_SIZE)
@@ -75,16 +94,52 @@ cpudelay:	.long	1
 	.text
 	jmp	start			# Handle loaders that start at first byte of
 					# text rather than the entry point
-	.align 4
 mbootheader:  				# Beginning of multiboot header, embedded in ELF header
+	.align 	8
 	.long   MULTIBOOT_HEADER_MAGIC
-	.long   MULTIBOOT_HEADER_FLAGS
-	.long   -(MULTIBOOT_HEADER_MAGIC + MULTIBOOT_HEADER_FLAGS)
-	.long   mbootheader 		# Begin a.out kludge: header address
-	.long   text			# load address
-   	.long   bss			# load end address
-	.long   ebss			# bss end address
-	.long   start			# Entry address: end of multiboot header, end of a.out kludge
+	.long 	MULTIBOOT_ARCH
+	.long	MULTIBOOT_HEADER_LENGTH	# mbootheader length
+	.long	0x100000000 - (MULTIBOOT_HEADER_MAGIC + MULTIBOOT_ARCH + MULTIBOOT_HEADER_LENGTH) # Checksum
+
+	# Module alignment tag
+	.align 	8
+	.short	MODULE_ALIGNMENT_TAG_TYPE
+	.short	MODULE_ALIGNMENT_TAG_FLAGS
+	.long	MODULE_ALIGNMENT_TAG_SIZE
+
+	# Address tag	
+	.align 	8
+	.short	ADDRESS_TAG_TYPE
+	.short 	ADDRESS_TAG_FLAGS
+	.long	ADDRESS_TAG_SIZE
+	.long	mbootheader		# header address
+	.long	text			# load address
+	.long	bss				# load end address
+	.long 	ebss			# bss end address
+
+	# Entry address tag	
+	.align 	8
+	.short 	ENTRY_ADDRESS_TAG_TYPE
+	.short 	ENTRY_ADDRESS_TAG_FLAGS
+	.long 	ENTRY_ADDRESS_TAG_SIZE
+	.long	start			# Entry address
+
+	# Information request tag
+info_req_tag:
+	.align 	8
+	.short	INFO_REQ_TAG_TYPE
+	.short	INFO_REQ_TAG_FLAGS
+	.long	info_req_tag - info_req_tag_end	# Size of information request tag
+	.long 	INFO_REQ_MEM	# Basic memory information
+	.long 	INFO_REQ_MMAP	# Memory map information
+info_req_tag_end:
+
+	# Terminating tag
+	.align 	8
+	.short	0
+	.short 	0
+	.long 	8
+mbootheader_end:  			# End of multiboot header
 
 	.globl	start
 start:
