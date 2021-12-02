@@ -129,7 +129,7 @@ info_req_tag:
 	.align 	8
 	.short	INFO_REQ_TAG_TYPE
 	.short	INFO_REQ_TAG_FLAGS
-	.long	info_req_tag - info_req_tag_end	# Size of information request tag
+	.long	info_req_tag_end - info_req_tag	# Size of information request tag
 	.long 	INFO_REQ_MEM	# Basic memory information
 	.long 	INFO_REQ_MMAP	# Memory map information
 info_req_tag_end:
