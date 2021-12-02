@@ -48,7 +48,8 @@
  */
 #define	MULTIBOOT_HEADER_MAGIC  0xE85250D6
 #define MULTIBOOT_ARCH 		0
-#define MULTIBOOT_HEADER_LENGTH	mbootheader - mbootheader_end
+#define MULTIBOOT_HEADER_LENGTH	(mbootheader_end - mbootheader)
+// #define MULTIBOOT_HEADER_LENGTH	0x54
 #define MODULE_ALIGNMENT_TAG_TYPE	6
 #define MODULE_ALIGNMENT_TAG_FLAGS	1
 #define MODULE_ALIGNMENT_TAG_SIZE	8
@@ -94,8 +95,9 @@ cpudelay:	.long	1
 	.text
 	jmp	start			# Handle loaders that start at first byte of
 					# text rather than the entry point
-mbootheader:  				# Beginning of multiboot header, embedded in ELF header
 	.align 	8
+	.globl 	mbootheader
+mbootheader:  				# Beginning of multiboot header, embedded in ELF header
 	.long   MULTIBOOT_HEADER_MAGIC
 	.long 	MULTIBOOT_ARCH
 	.long	MULTIBOOT_HEADER_LENGTH	# mbootheader length
@@ -125,8 +127,8 @@ mbootheader:  				# Beginning of multiboot header, embedded in ELF header
 	.long	start			# Entry address
 
 	# Information request tag
-info_req_tag:
 	.align 	8
+info_req_tag:
 	.short	INFO_REQ_TAG_TYPE
 	.short	INFO_REQ_TAG_FLAGS
 	.long	info_req_tag_end - info_req_tag	# Size of information request tag
@@ -142,7 +144,22 @@ info_req_tag_end:
 mbootheader_end:  			# End of multiboot header
 
 	.globl	start
+	.code32
 start:
+	mov	$0x3f8, %dx
+
+	movb	$41, %al
+	out	%al, %dx
+
+	movb	$42, %al
+	out	%al, %dx
+
+	movb	$43, %al
+	out	%al, %dx
+
+	jmp 	start
+
+	// Should not go past this point 
 
 	/*
 	 * Store the boot arguments.
