@@ -31,14 +31,14 @@ struct mbmregion {
 	uint32	type;			/* Memory region type		*/
 };
 
-/* Multiboot header magic number	*/
-#define	MULTIBOOT_HEADER_MAGIC  	0x1BADB002
+/* Multiboot 2 header magic number	*/
+#define	MULTIBOOT_HEADER_MAGIC  	0xE85250D6
 
 /* Flags for required multiboot info	*/
 #define	MULTIBOOT_HEADER_FLAGS  	0x00010003
 
-/* Multiboot signature verification	*/
-#define MULTIBOOT_SIGNATURE		0x2BADB002
+/* Multiboot 2 signature verification	*/
+#define MULTIBOOT_SIGNATURE		0x36d76289
 
 /* mem_upper mem_lower fields valid	*/
 #define MULTIBOOT_BOOFINFO_MEM		0x00000001
@@ -57,3 +57,8 @@ struct mbmregion {
 
 /* Usable memory region 		*/
 #define	MULTIBOOT_MMAP_TYPE_USABLE	0x00000001
+
+/* Mulitboot 2 */
+
+/* mmap_length mmap_addr valid		*/
+#define MULTIBOOT_BOOTINFO_MMAP_TYPE	6

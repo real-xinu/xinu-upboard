@@ -64,8 +64,11 @@
 #define INFO_REQ_MEM	4
 #define INFO_REQ_MMAP	6
 
-#define MULTIBOOT_SIGNATURE	0x2BADB002	/* Multiboot signature verification	*/
-#define MULTIBOOT_BOOTINFO_MMAP	0x00000040	/* mmap_length mmap_addr valid		*/
+// TODO: Change to proper signature
+//#define MULTIBOOT_SIGNATURE	0x36d76289	/* Multiboot signature verification	*/
+#define MULTIBOOT_SIGNATURE	0x36d76229	/* QEMU Multiboot signature verification ? */
+//#define MULTIBOOT_BOOTINFO_MMAP	0x00000040	/* mmap_length mmap_addr valid		*/
+#define MULTIBOOT_BOOTINFO_MMAP_TYPE	6	/* mmap boot info tag */
 
 #define	GDT_ENTRIES		4
 #define	GDT_ENTRY_SIZE		8
@@ -146,57 +149,90 @@ mbootheader_end:  			# End of multiboot header
 	.globl	start
 	.code32
 start:
+	// Checkpoint: start
 	mov	$0x3f8, %dx
-
-	movb	$41, %al
+	movb	$48, %al
 	out	%al, %dx
-
-	movb	$42, %al
-	out	%al, %dx
-
-	movb	$43, %al
-	out	%al, %dx
-
-	jmp 	start
-
-	// Should not go past this point 
 
 	/*
 	 * Store the boot arguments.
 	 */
-	movl	%eax, bootsign
-	movl	%ebx, bootinfo
+	movl	%eax, bootsign	# Should be 0x36d76289 on MB2
+	movl	%ebx, bootinfo	# MB2 Info struct address
 	
 	/*
 	 * Test the multiboot signature and memory map flags
 	 */
 	cmpl	$MULTIBOOT_SIGNATURE, %eax
-	jne	halt
-	testb	$MULTIBOOT_BOOTINFO_MMAP, (%ebx)
-	je	halt
-	
+	// TODO: Enable signature checking
+	//jne	halt
+
+	/*
+	 *	Find memory map tag, halt if not found
+	 */
+	movl	(%ebx), %eax	# Boot info struct size
+	addl	%ebx, %eax	# End address of boot info struct
+	addl	$0x8, %ebx 	# Move to first tag
+	jmp	search_mmap_tag
+
+next_tag:
+	# Checkpoint: next tag
+	# Save
+	movl	%eax, %ecx
+	mov	$0x3f8, %dx
+	movb	$49, %al
+	out	%al, %dx
+	movl	%ecx, %eax
+
+	movl	4(%ebx), %ecx	# Read tag size (doesn't include padding)
+	addl	%ecx, %ebx	# Inc address to next tag
+	addl	$7, %ebx	# Add size of padding (align to next 8 byte boundary)
+	andl	$0xFFFFFFF8, %ebx
+
+search_mmap_tag:
+	cmpl	%eax, %ebx	# If curr_addr > bootinfo_end, halt
+	jae	halt
+
+	cmpl	$MULTIBOOT_BOOTINFO_MMAP_TYPE, (%ebx)	# Check for mmap tag
+	jne		next_tag	
+
+	# Checkpoint: after tag search
+	mov	$0x3f8, %dx
+	movb	$50, %al
+	out	%al, %dx
+
 	/*
 	 * Iterate through the memory map segments to find the highest
 	 *   address that will fit the null stack
 	 */
-	movl	0x30(%ebx), %ecx	# Load mmap_addr
-	movl	0x2C(%ebx), %edx 	# Load mmap_length
-	andl	$0xfffffffc, %edx	# Load mmap_end
-	addl	%ecx, %edx
-	movl	$0x0, %esp		# Initialize stack pointer to some small value
+
+	movl	%ebx, %ecx	# Addr of first base_addr
+	addl	$16, %ecx
+	movl	4(%ebx), %edx 	# Load (mmap + tag) size
+	andl	$0xfffffffc, %edx	# Load mmap_end, align to 4 bytes
+	addl	%ebx, %edx		# end of mmap addr (mmap tag + size)
+	movl	$0x0, %esp		# Initialize null stack pointer to some small value
+
+	# Checkpoint: before search
+	movl	%edx, %ebx
+	mov	$0x3f8, %dx
+	movb	$51, %al
+	out	%al, %dx
+	movl	%ebx, %edx
+
 
 mmap_search_start:
 	cmpl	%edx, %ecx		# If mmap_addr >= mmap_end then quit
 	jae	mmap_search_done
 
 	# skip memory segment if it is not usable
-	movl	20(%ecx), %eax		# Test the address block type
+	movl	16(%ecx), %eax		# Test the address block type
 	cmpl	$0x01, %eax		# If type is not equal to 1
 	jne	mmap_search_next_sgmt	#   then this is not a usable block
 
 	# skip memory segment if it is within the memory for Xinu
-	movl	4(%ecx), %eax		# Load memory address of segment
-	movl	12(%ecx), %ebx		# Load segment size
+	movl	(%ecx), %eax		# Load memory address of segment (base_addr)
+	movl	8(%ecx), %ebx		# Load segment size/length
 	add	%ebx, %eax		# Find end of memory segment
 	movl	$end, %ebx		# Load end of xinu
 	cmpl	%ebx, %eax		# Compare segment and xinu end
@@ -206,10 +242,10 @@ mmap_search_start:
 	#   Check if it is big enough to hold the null stack
 	#   Subtract off any memory location that overlaps the
 	#     the Xinu memory region
-	movl	4(%ecx), %eax		# Load memory address of segment
+	movl	(%ecx), %eax		# Load memory address of segment
 	movl	$end, %ebx		# Load end of xinu
 	subl	%eax, %ebx		# Determine overlap
-	movl	12(%ecx), %eax		# Load segment size
+	movl	8(%ecx), %eax		# Load segment size
 	cmpl	$0x0, %ebx		# Check if overlap is greater than zero
 	jl	mmap_search_no_overlap
 	subl	%ebx, %eax		# Subtract overlap size
@@ -220,28 +256,39 @@ mmap_search_no_overlap:
 	# Segment is big enough to hold the null stack
 	#   want to save the highest possible address
 	#   check if segment is larger than current stack pointer
-	movl	4(%ecx), %eax		# Load memory address of segment
-	movl	12(%ecx), %ebx		# Load segment size
+	movl	(%ecx), %eax		# Load memory address of segment
+	movl	8(%ecx), %ebx		# Load segment size
 	addl	%ebx, %eax		# Retrieve segment end
 	cmpl	%esp, %eax		# Compare segment and stack pointer
 	jl	mmap_search_next_sgmt	# Skip segment if less than
 	
 	# Segment is big enough to hold the nullstack
 	#   and larger than the current stack pointer
-	#   Use the end of the new segment as the null stack
-	#     Round to the nearest block and subtract 4 (for STACKMAGIC)
+	#   Use the end of the new segment as the null stack (as stack grows down)
+	#     Round to the nearest block and subtract 4 (for STACKMAGIC), stack grows
+	# 	  below that.
 	movl	%eax, %esp
-	addl	$0x7, %esp
-	andl	$0xFFFFFFF8, %esp
+	addl	$0x7, %esp	# Add 7 for rounding up
+	andl	$0xFFFFFFF8, %esp	# Round (down) to 8 byte boundary
 	subl	$0x4, %esp
 
-mmap_search_next_sgmt:
-	movl	(%ecx), %eax		# Load the entry_size
-	addl	%eax, %ecx		# mmap_addr += entry_size + 4
-	addl	$0x4, %ecx
+mmap_search_next_sgmt:	
+	# Checkpoint: next sgmt
+	movl	%edx, %ebx
+	mov	$0x3f8, %dx
+	movb	$52, %al
+	out	%al, %dx
+	movl	%ebx, %edx
+
+	addl	$24, %ecx	# Jump 24 bytes to the next entry
 	jmp	mmap_search_start
 	
 mmap_search_done:
+
+	# Checkpoint: mmap search done
+	mov	$0x3f8, %dx
+	movb	$53, %al
+	out	%al, %dx
 
 	# Stack pointer set continue with boot
 	movl	%esp, %ebp
