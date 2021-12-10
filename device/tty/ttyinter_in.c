@@ -1,4 +1,4 @@
-/* ttyhandle_in.c - ttyhandle_in, erase1, eputc, echoch */
+/* ttyinter_in.c ttyInter_in, erase1, eputc, echoch */
 
 #include <xinu.h>
 
@@ -7,30 +7,30 @@ local	void	echoch(char, struct ttycblk *, struct uart_csreg *);
 local	void	eputc(char, struct ttycblk *, struct uart_csreg *);
 
 /*------------------------------------------------------------------------
- *  ttyhandle_in  -  Handle one arriving char (interrupts disabled)
+ *  ttyInter_in  --  handle one arriving char (interrupts disabled)
  *------------------------------------------------------------------------
  */
-void	ttyhandle_in (
-	  struct ttycblk *typtr,	/* Pointer to ttytab entry	*/
-	  struct uart_csreg *csrptr	/* Address of UART's CSR	*/
+void	ttyInter_in (
+	  struct ttycblk *typtr,	/* ptr to ttytab entry		*/
+	  struct uart_csreg *csrptr	/* address of UART's CSR	*/
 	)
 {
-	char	ch;			/* Next char from device	*/
-	int32	avail;			/* Chars available in buffer	*/
+	char	ch;			/* next char from device	*/
+	int32	avail;			/* chars available in buffer	*/
 
-	ch = csrptr->buffer;
+	ch = inb( (int)&csrptr->buffer ); /* extract char. from device	*/
 
 	/* Compute chars available */
 
 	avail = semcount(typtr->tyisem);
-	if (avail < 0) {		/* One or more processes waiting*/
+	if (avail < 0) {		/* one or more processes waiting*/
 		avail = 0;
 	}
 
 	/* Handle raw mode */
 
 	if (typtr->tyimode == TY_IMRAW) {
-		if (avail >= TY_IBUFLEN) { /* No space => ignore input	*/
+		if (avail >= TY_IBUFLEN) { /* no space => ignore input	*/
 			return;
 		}
 
@@ -40,8 +40,8 @@ void	ttyhandle_in (
 
 		/* Wrap buffer pointer	*/
 
-		if (typtr->tyitail >= &typtr->tyibuff[TY_IBUFLEN]) {
-			typtr->tyitail = typtr->tyibuff;
+		if (typtr->tyotail >= &typtr->tyobuff[TY_OBUFLEN]) {
+			typtr->tyotail = typtr->tyobuff;
 		}
 
 		/* Signal input semaphore and return */
@@ -60,7 +60,7 @@ void	ttyhandle_in (
 	if (typtr->tyoflow) {
 		if (ch == typtr->tyostart) {	    /* ^Q starts output	*/
 			typtr->tyoheld = FALSE;
-			ttykickout(csrptr);
+			ttyKickOut(typtr, csrptr);
 			return;
 		} else if (ch == typtr->tyostop) {  /* ^S stops	output	*/
 			typtr->tyoheld = TRUE;
@@ -84,10 +84,9 @@ void	ttyhandle_in (
 			if (typtr->tyitail>=&typtr->tyibuff[TY_IBUFLEN]) {
 				typtr->tyitail = typtr->tyibuff;
 			}
-			if (typtr->tyiecho) {	/* Are we echoing chars?*/
+			if (typtr->tyiecho) {	/* are we echoing chars?*/
 				echoch(ch, typtr, csrptr);
 			}
-			signal(typtr->tyisem);
 		}
 		return;
 
@@ -98,7 +97,7 @@ void	ttyhandle_in (
 		if (ch == typtr->tyikillc && typtr->tyikill) {
 			typtr->tyitail -= typtr->tyicursor;
 			if (typtr->tyitail < typtr->tyibuff) {
-				typtr->tyitail += TY_IBUFLEN;
+				typtr->tyihead += TY_IBUFLEN;
 			}
 			typtr->tyicursor = 0;
 			eputc(TY_RETURN, typtr, csrptr);
@@ -108,8 +107,7 @@ void	ttyhandle_in (
 
 		/* Erase (backspace) character */
 
-		if ( ((ch==typtr->tyierasec) || (ch==typtr->tyierasec2))
-					     && typtr->tyierase) {
+		if ( (ch == typtr->tyierasec) && typtr->tyierase) {
 			if (typtr->tyicursor > 0) {
 				typtr->tyicursor--;
 				erase1(typtr, csrptr);
@@ -157,7 +155,7 @@ void	ttyhandle_in (
 			}
 			*typtr->tyitail++ = ch;
 			signal(typtr->tyisem);
-			return;
+			return;			
 		}
 
 
@@ -182,15 +180,15 @@ void	ttyhandle_in (
 }
 
 /*------------------------------------------------------------------------
- *  erase1  -  Erase one character honoring erasing backspace
+ *  erase1  --  erase one character honoring erasing backspace
  *------------------------------------------------------------------------
  */
 local	void	erase1(
-	  struct ttycblk	*typtr,	/* Ptr to ttytab entry		*/
-	  struct uart_csreg	*csrptr	/* Address of UART's CSRs	*/
+	  struct ttycblk	*typtr,	/* ptr to ttytab entry		*/
+	  struct uart_csreg	*csrptr	/* address of UART's CSRs	*/
 	)
 {
-	char	ch;			/* Character to erase		*/
+	char	ch;			/* character to erase		*/
 
 	if ( (--typtr->tyitail) < typtr->tyibuff) {
 		typtr->tyitail += TY_IBUFLEN;
@@ -199,16 +197,16 @@ local	void	erase1(
 	/* Pick up char to erase */
 
 	ch = *typtr->tyitail;
-	if (typtr->tyiecho) {			   /* Are we echoing?	*/
+	if (typtr->tyiecho) {			   /* are we echoing?	*/
 		if (ch < TY_BLANK || ch == 0177) { /* Nonprintable	*/
-			if (typtr->tyevis) {	/* Visual cntl chars */
+			if (typtr->tyevis) {	/* visual cntl chars */
 				eputc(TY_BACKSP, typtr, csrptr);
-				if (typtr->tyieback) { /* Erase char	*/
+				if (typtr->tyieback) { /* erase char	*/
 					eputc(TY_BLANK, typtr, csrptr);
 					eputc(TY_BACKSP, typtr, csrptr);
 				}
 			}
-			eputc(TY_BACKSP, typtr, csrptr);/* Bypass up arr*/
+			eputc(TY_BACKSP, typtr, csrptr);/* bypass up arr*/
 			if (typtr->tyieback) {
 				eputc(TY_BLANK, typtr, csrptr);
 				eputc(TY_BACKSP, typtr, csrptr);
@@ -225,13 +223,13 @@ local	void	erase1(
 }
 
 /*------------------------------------------------------------------------
- *  echoch  -  Echo a character with visual and output crlf options
+ *  echoch  --  echo a character with visual and output crlf options
  *------------------------------------------------------------------------
  */
 local	void	echoch(
-	  char	ch,			/* Character to	echo		*/
-	  struct ttycblk *typtr,	/* Ptr to ttytab entry		*/
-	  struct uart_csreg *csrptr	/* Address of UART's CSRs	*/
+	  char	ch,			/* character to	echo		*/
+	  struct ttycblk *typtr,	/* ptr to ttytab entry		*/
+	  struct uart_csreg *csrptr	/* address of UART's CSRs	*/
 	)
 {
 	if ((ch==TY_NEWLINE || ch==TY_RETURN) && typtr->tyecrlf) {
@@ -239,20 +237,20 @@ local	void	echoch(
 		eputc(TY_NEWLINE, typtr, csrptr);
 	} else if ( (ch<TY_BLANK||ch==0177) && typtr->tyevis) {
 		eputc(TY_UPARROW, typtr, csrptr);/* print ^x		*/
-		eputc(ch+0100, typtr, csrptr);	/* Make it printable	*/
+		eputc(ch+0100, typtr, csrptr);	/* make it printable	*/
 	} else {
 		eputc(ch, typtr, csrptr);
 	}
 }
 
 /*------------------------------------------------------------------------
- *  eputc  -  Put one character in the echo queue
+ *  eputc - put one character in the echo queue
  *------------------------------------------------------------------------
  */
 local	void	eputc(
-	  char	ch,			/* Character to	echo		*/
-	  struct ttycblk *typtr,	/* Ptr to ttytab entry		*/
-	  struct uart_csreg *csrptr	/* Address of UART's CSRs	*/
+	  char	ch,			/* character to	echo		*/
+	  struct ttycblk *typtr,	/* ptr to ttytab entry		*/
+	  struct uart_csreg *csrptr	/* address of UART's CSRs	*/
 	)
 {
 	*typtr->tyetail++ = ch;
@@ -262,6 +260,6 @@ local	void	eputc(
 	if (typtr->tyetail >= &typtr->tyebuff[TY_EBUFLEN]) {
 		typtr->tyetail = typtr->tyebuff;
 	}
-	ttykickout(csrptr);
+	ttyKickOut(typtr, csrptr);
 	return;
 }

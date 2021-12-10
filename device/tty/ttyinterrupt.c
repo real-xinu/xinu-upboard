@@ -1,24 +1,22 @@
-/* ttyhandler.c - ttyhandler */
+/* ttyinterrupt.c - ttyInterrupt */
 
 #include <xinu.h>
 
 /*------------------------------------------------------------------------
- *  ttyhandler  -  Handle an interrupt for a tty (serial) device
+ *  ttyInterrupt - handle an interrupt for a tty (serial) device
  *------------------------------------------------------------------------
  */
-void ttyhandler(
-		int32	arg	/* Interrupt handler argument	*/
-		)
-{
-	struct	dentry	*devptr;	/* Address of device control blk*/
-	struct	ttycblk	*typtr;		/* Pointer to ttytab entry	*/	
-	struct	uart_csreg *csrptr;	/* Address of UART's CSR	*/
-	byte	iir = 0;		/* Interrupt identification	*/
+void ttyInterrupt(void) {
+	struct	dentry	*devptr;	/* address of device control blk*/
+	struct	ttycblk	*typtr;		/* pointer to ttytab entry	*/	
+	struct	uart_csreg *csrptr;	/* address of UART's CSR	*/
+	byte	iir = 0;		/* interrupt identification	*/
+	byte	lsr = 0;		/* line status			*/
 
 
 	/* Get CSR address of the device (assume console for now) */
 
-	devptr = (struct dentry *) arg;
+	devptr = (struct dentry *) &devtab[CONSOLE];
 	csrptr = (struct uart_csreg *) devptr->dvcsr;
 
 	/* Obtain a pointer to the tty control block */
@@ -28,7 +26,7 @@ void ttyhandler(
 	/* Decode hardware interrupt request from UART device */
 
         /* Check interrupt identification register */
-	iir = csrptr->iir;
+        iir = inb( (int)&csrptr->iir );
         if (iir & UART_IIR_IRQ) {
 		return;
         }
@@ -40,12 +38,13 @@ void ttyhandler(
 
         /* Decode the interrupt cause */
 
-        iir &= UART_IIR_IDMASK;		/* Mask off the interrupt ID */
+        iir &= UART_IIR_IDMASK;		/* mask off the interrupt ID */
         switch (iir) {
 
 	    /* Receiver line status interrupt (error) */
 
 	    case UART_IIR_RLSI:
+		lsr = inb( (int)&csrptr->lsr );
 		return;
 
 	    /* Receiver data available or timed out */
@@ -55,10 +54,10 @@ void ttyhandler(
 
 		resched_cntl(DEFER_START);
 
-		/* While chars avail. in UART buffer, call ttyhandle_in	*/
+		/* While chars avail. in UART buffer, call ttyInter_in	*/
 
-		while ( (csrptr->lsr & UART_LSR_DR) != 0) {
-			ttyhandle_in(typtr, csrptr);
+		while ( (inb( (int)&csrptr->lsr) & UART_LSR_DR) != 0) {
+			ttyInter_in(typtr, csrptr);
                 }
 
 		resched_cntl(DEFER_STOP);
@@ -68,7 +67,9 @@ void ttyhandler(
             /* Transmitter output FIFO is empty (i.e., ready for more)	*/
 
 	    case UART_IIR_THRE:
-		ttyhandle_out(typtr, csrptr);
+		/* Read from LSR to clear interrupt */
+		lsr = inb( (int)&csrptr->lsr );
+		ttyInter_out(typtr, csrptr);
 		return;
 
 	    /* Modem status change (simply ignore) */

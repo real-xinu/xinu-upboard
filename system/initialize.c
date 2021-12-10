@@ -54,7 +54,7 @@ void	nulluser()
 	/* Initialize the system */
 
 	sysinit();
-
+	kprintf("Finished sysinit()");
 	/* Output Xinu memory layout */
 	free_mem = 0;
 	for (memptr = memlist.mnext; memptr != NULL;
@@ -211,7 +211,7 @@ static	void	sysinit()
 	}
 
 	/* Initialize buffer pools */
-	kprintf("We here yet?");
+
 	bufinit();
 
 	/* Create a ready list for processes */
@@ -223,7 +223,9 @@ static	void	sysinit()
 	clkinit();
 
 	for (i = 0; i < NDEVS; i++) {
+		kprintf("Starting init(%d)...\n", i);
 		init(i);
+		kprintf("Finished init(%d)\n", i);
 	}
 	return;
 }

@@ -52,35 +52,60 @@ devcall	ttyinit(
 
 	/* Get the encoded PCI for the UART device */
 
-	pcidev = find_pci_device(INTEL_QUARK_UART_PCI_DID,
-				 INTEL_QUARK_UART_PCI_VID,
-				 1);
+	// pcidev = find_pci_device(INTEL_QUARK_UART_PCI_DID,
+	// 			 INTEL_QUARK_UART_PCI_VID,
+	// 			 1);
 
 	/* Initialize the UART */
 
 	uptr = (struct uart_csreg *)devptr->dvcsr;
 
-	/* Set baud rate */
-	uptr->lcr = UART_LCR_DLAB;
-	uptr->dlm = 0x00;
-	uptr->dll = 0x18;
+	// /* Set baud rate */
+	// uptr->lcr = UART_LCR_DLAB;
+	// uptr->dlm = 0x00;
+	// uptr->dll = 0x18;
 
-	uptr->lcr = UART_LCR_8N1;	/* 8 bit char, No Parity, 1 Stop*/
-	uptr->fcr = 0x00;		/* Disable FIFO for now		*/
+	// uptr->lcr = UART_LCR_8N1;	/* 8 bit char, No Parity, 1 Stop*/
+	// uptr->fcr = 0x00;		/* Disable FIFO for now		*/
 
-	/* Register the interrupt handler for the tty device */
+	// /* Register the interrupt handler for the tty device */
 
-	pci_set_ivec( pcidev, devptr->dvirq, devptr->dvintr,
-							(int32)devptr );
+	// pci_set_ivec( pcidev, devptr->dvirq, devptr->dvintr,
+	// 						(int32)devptr );
 
-	/* Enable interrupts on the device: reset the transmit and	*/
-	/*   receive FIFOS, and set the interrupt trigger level		*/
+	// /* Enable interrupts on the device: reset the transmit and	*/
+	// /*   receive FIFOS, and set the interrupt trigger level		*/
 
-	uptr->fcr = UART_FCR_EFIFO | UART_FCR_RRESET |
-			UART_FCR_TRESET | UART_FCR_TRIG2;
+	// uptr->fcr = UART_FCR_EFIFO | UART_FCR_RRESET |
+	// 		UART_FCR_TRESET | UART_FCR_TRIG2;
 
-	/* Start the device */
+	// /* Start the device */
 
-	ttykickout(uptr);
+	// ttykickout(uptr);
+
+	outb((int)&uptr->lcr, UART_LCR_8N1);	/* 8 bit char, No Parity, 1 Stop*/
+	outb((int)&uptr->fcr, 0x00);		/* Disable FIFO for now		*/
+	/* OUT2 value is used to control the onboard interrupt tri-state*/
+	/* buffer. It should be set high to generate interrupts		*/
+	outb((int)&uptr->mcr, UART_MCR_DTR | 
+			      UART_MCR_RTS | 
+			      UART_MCR_OUT2);	/* Turn on user-defined OUT2	*/
+
+	/* Register the interrupt dispatcher for the tty device */
+
+	set_evec( devptr->dvirq, (uint32)devptr->dvintr );
+
+	/* Enable interrupts on the device */
+
+	/* Enable UART FIFOs, clear and set interrupt trigger level	*/
+	outb((int)&uptr->fcr, UART_FCR_EFIFO | UART_FCR_RRESET |
+			      UART_FCR_TRESET | UART_FCR_TRIG2);
+
+	ttyKickOut(typtr, uptr);
+	(void)inb((int)&uptr->iir);
+	(void)inb((int)&uptr->lsr);
+	(void)inb((int)&uptr->msr);
+	(void)inb((int)&uptr->buffer);
+
 	return OK;
 }
