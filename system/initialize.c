@@ -54,7 +54,7 @@ void	nulluser()
 	/* Initialize the system */
 
 	sysinit();
-
+	kprintf("end sysinit()");
 	/* Output Xinu memory layout */
 	free_mem = 0;
 	for (memptr = memlist.mnext; memptr != NULL;

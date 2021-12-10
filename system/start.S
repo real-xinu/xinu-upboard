@@ -222,6 +222,7 @@ search_mmap_tag:
 
 
 mmap_search_start:
+
 	cmpl	%edx, %ecx		# If mmap_addr >= mmap_end then quit
 	jae	mmap_search_done
 
@@ -237,7 +238,7 @@ mmap_search_start:
 	movl	$end, %ebx		# Load end of xinu
 	cmpl	%ebx, %eax		# Compare segment and xinu end
 	jle	mmap_search_next_sgmt	# Skip if segment is within xinu
-	
+
 	# Segment is usable and not within xinu memory region
 	#   Check if it is big enough to hold the null stack
 	#   Subtract off any memory location that overlaps the
@@ -249,7 +250,7 @@ mmap_search_start:
 	cmpl	$0x0, %ebx		# Check if overlap is greater than zero
 	jl	mmap_search_no_overlap
 	subl	%ebx, %eax		# Subtract overlap size
-mmap_search_no_overlap:
+mmap_search_no_overlap:	
 	cmpl	$NULLSTK, %eax		# Compare with nullstack size
 	jl	mmap_search_next_sgmt
 	
@@ -261,7 +262,7 @@ mmap_search_no_overlap:
 	addl	%ebx, %eax		# Retrieve segment end
 	cmpl	%esp, %eax		# Compare segment and stack pointer
 	jl	mmap_search_next_sgmt	# Skip segment if less than
-	
+
 	# Segment is big enough to hold the nullstack
 	#   and larger than the current stack pointer
 	#   Use the end of the new segment as the null stack (as stack grows down)
@@ -272,14 +273,16 @@ mmap_search_no_overlap:
 	andl	$0xFFFFFFF8, %esp	# Round (down) to 8 byte boundary
 	subl	$0x4, %esp
 
-mmap_search_next_sgmt:	
+mmap_search_next_sgmt:
+/*
 	# Checkpoint: next sgmt
-	movl	%edx, %ebx
+	movl	%edx, %esi
 	mov	$0x3f8, %dx
-	movb	$52, %al
+	movb	$73, %al
+	movb	$126, %al
 	out	%al, %dx
-	movl	%ebx, %edx
-
+	movl	%esi, %edx
+*/
 	addl	$24, %ecx	# Jump 24 bytes to the next entry
 	jmp	mmap_search_start
 	

@@ -15,21 +15,21 @@ syscall kputc(byte c)	/* Character to write	*/
 	intmask	mask;
 
 	/* Disable interrupts */
-	mask = disable();
+	// mask = disable();
 
 	devptr = (struct dentry *) &devtab[CONSOLE];
 	csrptr = (struct uart_csreg *)devptr->dvcsr;
 
 	/* Fail if no console device was found */
 	if (csrptr == NULL) {
-		restore(mask);
+		// restore(mask);
 		return SYSERR;
 	}
 
 	/* Repeatedly poll the device until it becomes nonbusy */
-	while ( (inb( (int)&csrptr->lsr) & UART_LSR_THRE) == 0 ) {
-		;
-	}
+	// while ( (inb( (int)&csrptr->lsr) & UART_LSR_THRE) == 0 ) {
+	// 	;
+	// }
 
 	/* Write the character */
 	// csrptr->buffer = c;
@@ -44,7 +44,7 @@ syscall kputc(byte c)	/* Character to write	*/
 		outb( (int) &csrptr->buffer, '\r');
 	}
 
-	restore(mask);
+	// restore(mask);
 	return OK;
 }
 
