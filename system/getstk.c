@@ -13,7 +13,7 @@ char  	*getstk(
 	intmask	mask;			/* Saved interrupt mask		*/
 	struct	memblk	*prev, *curr;	/* Walk through memory list	*/
 	struct	memblk	*fits, *fitsprev; /* Record block that fits	*/
-
+	kprintf("getstk()...\n");
 	mask = disable();
 	if (nbytes == 0) {
 		restore(mask);
@@ -26,8 +26,9 @@ char  	*getstk(
 	curr = memlist.mnext;
 	fits = NULL;
 	fitsprev = NULL;  /* Just to avoid a compiler warning */
-
+	kprintf("requested bytes: %d\n", nbytes);
 	while (curr != NULL) {			/* Scan entire list	*/
+		kprintf("block bytes: %d\n", curr->mlength);
 		if (curr->mlength >= nbytes) {	/* Record block address	*/
 			fits = curr;		/*   when request fits	*/
 			fitsprev = prev;
@@ -38,6 +39,7 @@ char  	*getstk(
 
 	if (fits == NULL) {			/* No block was found	*/
 		restore(mask);
+		kprintf("error getstk()...\n");
 		return (char *)SYSERR;
 	}
 	if (nbytes == fits->mlength) {		/* Block is exact match	*/

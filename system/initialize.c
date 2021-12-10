@@ -52,9 +52,9 @@ void	nulluser()
 	outb(0x3f8, 'X');
 
 	/* Initialize the system */
-	kprintf("Starting sysinit()");
+
 	sysinit();
-	kprintf("Finished sysinit()");
+
 	/* Output Xinu memory layout */
 	free_mem = 0;
 	for (memptr = memlist.mnext; memptr != NULL;
@@ -83,6 +83,7 @@ void	nulluser()
 	/* Initialize the network stack and start processes */
 
 	// net_init();
+	kprintf("Skipping network init...\n");
 
 	/* Create a process to finish startup and start main */
 
@@ -223,9 +224,7 @@ static	void	sysinit()
 	clkinit();
 
 	for (i = 0; i < NDEVS; i++) {
-		kprintf("Starting init(%d)...\n", i);
 		init(i);
-		kprintf("Finished init(%d)\n", i);
 	}
 	return;
 }

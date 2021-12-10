@@ -26,12 +26,23 @@ pid32	create(
 	uint32		*saddr;		/* Stack address		*/
 
 	mask = disable();
+	kprintf("create()...");
 	if (ssize < MINSTK)
 		ssize = MINSTK;
 	ssize = (uint32) roundmb(ssize);
+	// Debug
+
+	if ((saddr = (uint32 *)getstk(ssize)) == (uint32 *)SYSERR) {
+		restore(mask);
+		kprintf("error 3 create()!\n");
+		return SYSERR;
+	}
+
+	// End Debug
 	if ( (priority < 1) || ((pid=newpid()) == SYSERR) ||
 	     ((saddr = (uint32 *)getstk(ssize)) == (uint32 *)SYSERR) ) {
 		restore(mask);
+		kprintf("error create()!\n");
 		return SYSERR;
 	}
 
@@ -94,6 +105,7 @@ pid32	create(
 	*--saddr = 0;			/* %edi */
 	*pushsp = (unsigned long) (prptr->prstkptr = (char *)saddr);
 	restore(mask);
+	kprintf("done create()!\n");
 	return pid;
 }
 

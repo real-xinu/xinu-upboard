@@ -4,6 +4,7 @@
 
 process	main(void)
 {
+	kprintf("Message from the main process!\n");
 
 	/* Run the Xinu shell */
 

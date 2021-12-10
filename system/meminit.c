@@ -76,12 +76,12 @@ void	meminit(void) {
 
 	/* Check if Xinu was loaded using the multiboot specification	*/
 	/*   and a memory map was included				*/
-	if(bootsign != MULTIBOOT_SIGNATURE) {
-		panic("could not find multiboot signature");
-	}
-	if(!(bootinfo->flags & MULTIBOOT_BOOTINFO_MMAP)) {
-		panic("no mmap found in boot info");
-	}
+	// if(bootsign != MULTIBOOT_SIGNATURE) {
+	// 	panic("could not find multiboot signature");
+	// }
+	// if(!(bootinfo->flags & MULTIBOOT_BOOTINFO_MMAP)) {
+	// 	panic("no mmap found in boot info");
+	// }
 
 	/* Get base address of mmap region (passed by GRUB) */
 	mmap_addr = (struct mbmregion*)bootinfo->mmap_addr;
