@@ -27,20 +27,21 @@ syscall kputc(byte c)	/* Character to write	*/
 	}
 
 	/* Repeatedly poll the device until it becomes nonbusy */
-	while ((csrptr->lsr & UART_LSR_THRE) == 0) {
+	while ( (inb( (int)&csrptr->lsr) & UART_LSR_THRE) == 0 ) {
 		;
 	}
 
 	/* Write the character */
-	csrptr->buffer = c;
+	// csrptr->buffer = c;
+	outb( (int) &csrptr->buffer, c);
 
 	/* Honor CRLF - when writing NEWLINE also send CARRIAGE RETURN	*/
 	if (c == '\n') {
 		/* Poll until transmitter queue is empty */
-		while ((csrptr->lsr & UART_LSR_THRE) == 0) {
+		while ( (inb( (int)&csrptr->lsr) & UART_LSR_THRE) == 0 ) {
 			;
 		}
-		csrptr->buffer = '\r';
+		outb( (int) &csrptr->buffer, '\r');
 	}
 
 	restore(mask);

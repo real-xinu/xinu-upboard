@@ -49,7 +49,7 @@ void	nulluser()
 	struct	memblk	*memptr;	/* Ptr to memory block		*/
 	uint32	free_mem;		/* Total amount of free memory	*/
 	
-	outb(0x3f8, 0x58);
+	outb(0x3f8, 'X');
 
 	/* Initialize the system */
 
@@ -155,7 +155,7 @@ static	void	sysinit()
 
 	/* Platform Specific Initialization */
 
-	platinit();
+	// platinit();
 
 	/* Reset the console */
 
@@ -211,7 +211,7 @@ static	void	sysinit()
 	}
 
 	/* Initialize buffer pools */
-
+	kprintf("We here yet?");
 	bufinit();
 
 	/* Create a ready list for processes */

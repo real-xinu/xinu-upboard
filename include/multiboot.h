@@ -38,7 +38,9 @@ struct mbmregion {
 #define	MULTIBOOT_HEADER_FLAGS  	0x00010003
 
 /* Multiboot 2 signature verification	*/
-#define MULTIBOOT_SIGNATURE		0x36d76289
+// #define MULTIBOOT_SIGNATURE		0x36d76289
+// QEMU Multiboot 2 signature
+#define MULTIBOOT_SIGNATURE		0x36d76230
 
 /* mem_upper mem_lower fields valid	*/
 #define MULTIBOOT_BOOFINFO_MEM		0x00000001

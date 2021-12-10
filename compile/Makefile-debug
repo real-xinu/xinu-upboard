@@ -9,7 +9,7 @@
 #########################################################################
 
 COMPILER_ROOT	=	/usr/bin/
-PNAME		=	galileo
+PNAME		=	atom
 PLAT		=	Platform_$(PNAME)
 TOPDIR		=	..
 
