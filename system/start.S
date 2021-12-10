@@ -311,6 +311,11 @@ mmap_search_done:
 	popl	%ecx
 	popl	%ebx
 	
+	# Checkpoint: bss cleared
+	mov	$0x3f8, %dx
+	movb	$54, %al
+	out	%al, %dx
+
 	/*
 	 * Set up the global descriptor table.
 	 */
@@ -331,6 +336,11 @@ gdt1:
 	movl	$0x18, %eax	/* SS descriptor 3 */
 	movw	%ax, %ss
 	
+	# Checkpoint: gdt init
+	mov	$0x3f8, %dx
+	movb	$55, %al
+	out	%al, %dx
+
 	/*
 	 * Call the nulluser to initialize the system
 	 */

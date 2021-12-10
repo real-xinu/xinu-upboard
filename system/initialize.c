@@ -49,6 +49,8 @@ void	nulluser()
 	struct	memblk	*memptr;	/* Ptr to memory block		*/
 	uint32	free_mem;		/* Total amount of free memory	*/
 	
+	outb(0x3f8, 0x58);
+
 	/* Initialize the system */
 
 	sysinit();
